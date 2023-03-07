@@ -1,46 +1,47 @@
 import Canvas from "./canvas.js"
-import Filter from "./filter.js"
+import Item from "./item.js"
 
-export default class Image{
+export default class Image extends Item{
 	/**
-	 * Image bitmap data
 	 * @type {ImageBitmap}
 	 */
 	bitmap
-	/**
-	 * Direction of x-axis
-	 * @type {number}
-	 */
-	x = 0
-	/**
-	 * Direction of y-axis
-	 * @type {number}
-	 */
-	y = 0
-	/**
-	 * Image filter
-	 * @type {Filter}
-	 */
-	filter = new Filter
-	/**
-	 * Width of the bitmap
-	 * @type {number}
-	 */
-	get width(){ return this.bitmap.width }
-	/**
-	 * Height of the bitmap
-	 * @type {number}
-	 */
-	get height(){ return this.bitmap.height }
-	
+
 	constructor(data){
+		super(0, 0)
 		return new Promise(async(res, rej)=>{
-			if(data instanceof ImageBitmap)
-				this.bitmap = data
-			else
-				this.bitmap = await createImageBitmap(await fetch(data).then(e=>e.blob()).catch(rej))
+			this.bitmap  = data instanceof ImageBitmap ? 
+				data :
+				await createImageBitmap(await fetch(data).then(e=>e.blob())).catch(rej)
+
+				// Unique property that references other object will be cast as such
+			this
+			.setProp('width', ()=>this.bitmap.width * this.scale_x)
+			.setProp('height', ()=>this.bitmap.height * this.scale_y)
+
 			res(this)
 		})
+	}
+
+	/**
+	 * Draw image to context
+	 * @param {Canvas} canvas
+	 */
+	draw(canvas){
+		const { ctx } = canvas
+		ctx.save()
+		super.draw(canvas)
+		canvas.fill_color = this.fill_color
+		canvas.stroke_color = this.stroke_color
+		canvas.stroke_size = this.stroke_size
+		
+		ctx.fillRect(this.x, this.y, this.width, this.height)
+		canvas.filter = this.filter
+		ctx.drawImage(this.bitmap, this.x, this.y, this.width, this.height)
+		canvas.filter = 'none'
+		ctx.strokeRect(this.x, this.y, this.width, this.height)
+		ctx.restore()
+		return this
 	}
 
 	/**
@@ -75,6 +76,7 @@ export default class Image{
 		height = height ?? this.height
 
 		const data = new Canvas(width, height)
+		data.draw(this.bitmap)
 
 		if(arguments.length === 0)
 			return data.toImageData(0, 0, width, height)
@@ -83,27 +85,26 @@ export default class Image{
 	}
 
 	/**
-	 * Crop and return part of the image
-	 * @param {number} x 
-	 * @param {number} y 
-	 * @param {number} width 
-	 * @param {number} height 
+	 * Crop an area of the image and returns a new image
+	 * @param {number} x
+	 * @param {number} y
+	 * @param {number} width
+	 * @param {number} height
 	 */
 	async crop(x, y, width, height){
 		return new Image(await createImageBitmap(this.bitmap, x, y, width, height))
 	}
 
 	/**
-	 * The mask data of the image
-	 * @returns {Array<number>}
+	 * Get the mask data of the image
 	 */
 	mask(){
-		const image_data = this.toImageData(0, 0, this.width, this.height),
-		data = []
+		const { data } = this.toImageData(0, 0, this.width, this.height),
+		arr = []
 
-		for(let i = 0; i < image_data.length; i+=4)
-			data.push(image_data[i + 3] >> 7)
+		for(let i = 3; i < data.length; i+= 4)
+			arr.push(data[i] >> 7)
 
-		return data
+		return arr
 	}
 }

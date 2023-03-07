@@ -4,7 +4,7 @@ export default class Filter{
 	constructor(){
 		return new Proxy(this, {
 			get(obj, p, r){
-				if(typeof obj[p] !== 'function' || ['valueOf', 'toString'].includes(p)) return obj[p]
+				if(typeof obj[p] !== 'function' || ['valueOf', 'toString', ''].includes(p)) return obj[p]
 				p = p.replace(/([A-Z])/, '-$1').toLowerCase()
 
 				return (...val)=>{
@@ -15,6 +15,8 @@ export default class Filter{
 							(Number.isInteger(val[2]) ? CSS.px(val[2]) : (val[2] ?? 0)) + '',
 							val[3] ?? 'black'
 						]
+					else if(p === 'box-shadow')
+						val = []
 					else{
 						val = val[0]
 						
@@ -25,6 +27,9 @@ export default class Filter{
 					}
 
 					const value = `${p}(${Array.isArray(val) ? val.join(' ') : val})`
+
+					if(p === 'box-shadow')
+						return p
 
 					if(CSS.supports('filter', value))
 						if(p === 'drop-shadow')
@@ -62,9 +67,15 @@ export default class Filter{
 	contrast(value){}
 
 	/**
+	 * @param {number} x
+	 * @param {number} y
+	 * @param {number} radius
+	 * @param {*} color
 	 * @return {Filter}
 	 */
 	dropShadow(x, y, radius = 0, color = 'black'){}
+
+	boxShadow(x, y, radius = 0, type = 'inset', color = 'black'){}
 
 	/**
 	 * @param {number|string} value 
